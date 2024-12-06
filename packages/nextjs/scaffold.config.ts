@@ -1,35 +1,50 @@
-import * as chains from "viem/chains";
+// src/config/scaffold.config.ts
+import { Chain } from "viem";
+import { arbitrum } from "viem/chains";
 
 export type ScaffoldConfig = {
-  targetNetworks: readonly chains.Chain[];
+  targetNetworks: readonly Chain[];
   pollingInterval: number;
-  alchemyApiKey: string;
   walletConnectProjectId: string;
   onlyLocalBurnerWallet: boolean;
+  tenderlyRpcUrl: string;
 };
 
-const scaffoldConfig = {
-  // The networks on which your DApp is live
-  targetNetworks: [chains.foundry],
+// Custom Tenderly-forked Arbitrum chain
+const tenderlyArbitrum = {
+  ...arbitrum,
+  id: 42161,
+  name: "Arbitrum (Tenderly Fork)",
+  nativeCurrency: {
+    name: "Ether",
+    symbol: "ETH",
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: {
+      http: [process.env.NEXT_PUBLIC_TENDERLY_RPC_URL!],
+    },
+    public: {
+      http: [process.env.NEXT_PUBLIC_TENDERLY_RPC_URL!],
+    },
+  },
+} as const satisfies Chain;
 
-  // The interval at which your front-end polls the RPC servers for new data
-  // it has no effect if you only target the local network (default is 4000)
+const scaffoldConfig = {
+  // Using our Tenderly forked network
+  targetNetworks: [tenderlyArbitrum],
+
+  // Polling interval for network updates
   pollingInterval: 30000,
 
-  // This is ours Alchemy's default API key.
-  // You can get your own at https://dashboard.alchemyapi.io
-  // It's recommended to store it in an env variable:
-  // .env.local for local testing, and in the Vercel/system env config for live apps.
-  alchemyApiKey: process.env.NEXT_PUBLIC_ALCHEMY_API_KEY || "oKxs-03sij-U_N0iOlrSsZFr29-IqbuF",
-
-  // This is ours WalletConnect's default project ID.
-  // You can get your own at https://cloud.walletconnect.com
-  // It's recommended to store it in an env variable:
-  // .env.local for local testing, and in the Vercel/system env config for live apps.
+  // WalletConnect project ID
   walletConnectProjectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || "3a8170812b534d0ff9d794f19a901d64",
 
-  // Only show the Burner Wallet when running on hardhat network
-  onlyLocalBurnerWallet: true,
+  // Burner wallet configuration
+  onlyLocalBurnerWallet: false,
+
+  // Tenderly RPC URL
+  tenderlyRpcUrl: process.env.NEXT_PUBLIC_TENDERLY_RPC_URL || "",
 } as const satisfies ScaffoldConfig;
 
 export default scaffoldConfig;
