@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TokenIcon } from "@web3icons/react";
 import { formatUnits } from "viem";
-import { useAccount, useBalance, useSwitchChain, useWalletClient } from "wagmi";
+import { useAccount, useBalance, useSwitchChain } from "wagmi";
 import { tenderlyArbitrum } from "~~/config/wagmi";
 import { TOKENS } from "~~/contracts/contracts";
 import { useTokenPrice } from "~~/hooks/useTokenPrice";
@@ -24,8 +24,7 @@ interface TokenState {
 const AddLiquidity: React.FC = () => {
   const { address: userAddress, isConnected, chainId: currentChainId } = useAccount();
   const { switchChain } = useSwitchChain();
-  const { data: walletClient } = useWalletClient();
-  const { price: ethPrice, isError: isPriceError, lastUpdate } = useTokenPrice("WETH");
+  const { price: ethPrice, isError: isPriceError } = useTokenPrice("WETH");
   const [tokens, setTokens] = useState<TokenState>({
     USDC: {
       amount: "",

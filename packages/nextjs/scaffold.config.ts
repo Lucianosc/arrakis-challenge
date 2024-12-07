@@ -1,4 +1,3 @@
-// src/config/scaffold.config.ts
 import { Chain } from "viem";
 import { arbitrum } from "viem/chains";
 
