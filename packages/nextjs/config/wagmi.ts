@@ -12,7 +12,7 @@ import { createClient } from "viem";
 import { createConfig, http } from "wagmi";
 import { arbitrum } from "wagmi/chains";
 
-const tenderlyArbitrum = {
+export const tenderlyArbitrum = {
   ...arbitrum,
   id: 42161,
   name: "Arbitrum (Tenderly Fork)",
