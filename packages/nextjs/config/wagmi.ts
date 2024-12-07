@@ -1,4 +1,3 @@
-// src/config/wagmi.ts
 import { connectorsForWallets } from "@rainbow-me/rainbowkit";
 import {
   coinbaseWallet,
@@ -8,11 +7,11 @@ import {
   trustWallet,
   walletConnectWallet,
 } from "@rainbow-me/rainbowkit/wallets";
-import { createClient } from "viem";
+import { Chain, createClient } from "viem";
 import { createConfig, http } from "wagmi";
-import { arbitrum } from "wagmi/chains";
+import { arbitrum, mainnet } from "wagmi/chains";
 
-export const tenderlyArbitrum = {
+const tenderlyArbitrum = {
   ...arbitrum,
   id: 42161,
   name: "Arbitrum (Tenderly Fork)",
@@ -51,9 +50,11 @@ const connectors = connectorsForWallets(
   },
 );
 
+export const supportedChains = [tenderlyArbitrum, mainnet];
+
 export const wagmiConfig = createConfig({
-  chains: [tenderlyArbitrum],
-  client({ chain }) {
+  chains: supportedChains,
+  client({ chain }: { chain: Chain }) {
     return createClient({
       chain,
       transport: http(process.env.NEXT_PUBLIC_TENDERLY_RPC_URL),

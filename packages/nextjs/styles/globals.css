@@ -2,46 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-:root,
-[data-theme] {
-  background: oklch(var(--b2));
-}
-
-body {
-  min-height: 100vh;
-}
-
-h1,
-h2,
-h3,
-h4 {
-  margin-bottom: 0.5rem;
-  line-height: 1;
-}
-
-p {
-  margin: 1rem 0;
-}
-
-.btn {
-  @apply shadow-md;
-}
-
-.btn.btn-ghost {
-  @apply shadow-none;
-}
-
-/* Remove number input spinners */
-input[type="number"] {
-  -moz-appearance: textfield; /* Firefox */
-}
-
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -70,6 +30,7 @@ input[type="number"]::-webkit-inner-spin-button {
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
   }
+
   .dark {
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
@@ -96,13 +57,37 @@ input[type="number"]::-webkit-inner-spin-button {
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply min-h-screen bg-background text-foreground;
+  }
+
+  /* Typography */
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply mb-2 leading-none;
+  }
+
+  p {
+    @apply my-4;
+  }
+}
+
+@layer components {
+  /* Remove number input spinners */
+  input[type="number"] {
+    -moz-appearance: textfield; /* Firefox */
+  }
+
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
   }
 }
