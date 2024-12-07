@@ -4,10 +4,11 @@ import React, { useEffect, useState } from "react";
 import TokenInput from "./TokenInput";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { TokenIcon } from "@web3icons/react";
 import { formatUnits } from "viem";
+import { arbitrum } from "viem/chains";
 import { useAccount, useBalance, useSwitchChain } from "wagmi";
-import { tenderlyArbitrum } from "~~/config/wagmi";
 import { TOKENS } from "~~/contracts/contracts";
 import { useTokenPrice } from "~~/hooks/useTokenPrice";
 
@@ -24,6 +25,7 @@ interface TokenState {
 const AddLiquidity: React.FC = () => {
   const { address: userAddress, isConnected, chainId: currentChainId } = useAccount();
   const { switchChain } = useSwitchChain();
+  const { openConnectModal } = useConnectModal();
   const { price: ethPrice, isError: isPriceError } = useTokenPrice("WETH");
   const [tokens, setTokens] = useState<TokenState>({
     USDC: {
@@ -127,15 +129,33 @@ const AddLiquidity: React.FC = () => {
     console.log("add liquidity");
   };
 
-  const isWrongNetwork = currentChainId !== tenderlyArbitrum.id;
-  const isButtonDisabled =
-    !isConnected ||
-    (!isWrongNetwork &&
-      (!Number(tokens.USDC.amount) ||
+  const buttonStates = {
+    disconnected: {
+      condition: !isConnected,
+      text: "Connect Wallet",
+      action: openConnectModal,
+      disabled: false,
+    },
+    wrongNetwork: {
+      condition: isConnected && currentChainId !== arbitrum.id,
+      text: "Switch to Arbitrum",
+      action: () => switchChain({ chainId: arbitrum.id }),
+      disabled: false,
+    },
+    addLiquidity: {
+      condition: isConnected && currentChainId === arbitrum.id,
+      text: "CONFIRM",
+      action: handleAddLiquidity,
+      disabled:
+        !Number(tokens.USDC.amount) ||
         !Number(tokens.WETH.amount) ||
         Number(tokens.USDC.amount) > tokens.USDC.balance ||
         Number(tokens.WETH.amount) > tokens.WETH.balance ||
-        isPriceError));
+        isPriceError,
+    },
+  };
+
+  const currentState = Object.values(buttonStates).find(state => state.condition);
 
   return (
     <Card className="w-full max-w-md bg-neutral-900 border-amber-900/20 mt-12">
@@ -143,11 +163,11 @@ const AddLiquidity: React.FC = () => {
         <CardTitle className="text-2xl font-semibold text-amber-50">Add liquidity</CardTitle>
         <div className="flex items-center space-x-2">
           <div className="flex items-center space-x-1">
-            <div className="w-6 h-6 rounded-full flex items-center justify-center bg-white">
+            <div className="w-6 h-6 rounded-full flex items-center justify-center bg-amber-50">
               <TokenIcon symbol="usdc" variant="branded" className="w-6 h-6" />
             </div>
-            <div className="w-6 h-6 rounded-full flex items-center justify-center bg-white">
-              <TokenIcon symbol="eth" variant="branded" className="w-6 h-6" />
+            <div className="w-6 h-6 rounded-full flex items-center justify-center bg-amber-50">
+              <TokenIcon symbol="eth" variant="branded" />
             </div>
           </div>
           <span className="text-amber-100 font-medium">USDC/WETH</span>
@@ -169,18 +189,10 @@ const AddLiquidity: React.FC = () => {
 
         <Button
           className="w-full bg-amber-600 hover:bg-amber-700 text-neutral-900 font-medium text-sm"
-          disabled={isButtonDisabled}
-          onClick={isWrongNetwork ? () => switchChain({ chainId: tenderlyArbitrum.id }) : handleAddLiquidity}
+          disabled={currentState?.disabled}
+          onClick={currentState?.action}
         >
-          {!isConnected
-            ? "Connect Wallet"
-            : isWrongNetwork
-              ? "Switch to Arbitrum"
-              : isPriceError
-                ? "Price Error"
-                : isButtonDisabled
-                  ? "Insufficient Balance"
-                  : "CONFIRM"}
+          {currentState?.text}
         </Button>
       </CardContent>
     </Card>
