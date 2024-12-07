@@ -1,12 +1,12 @@
-"use client";
-
 import type { NextPage } from "next";
-import { useAccount } from "wagmi";
+import AddLiquidity from "~~/components/AddLiquidity";
 
 const Home: NextPage = () => {
-  const { address: connectedAddress } = useAccount();
-
-  return <section>Hola</section>;
+  return (
+    <section className="flex flex-col items-center flex-1 p-4">
+      <AddLiquidity />
+    </section>
+  );
 };
 
 export default Home;
