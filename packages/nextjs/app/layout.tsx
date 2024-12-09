@@ -2,7 +2,6 @@ import "@/styles/globals.css";
 import "@rainbow-me/rainbowkit/styles.css";
 import { Toaster } from "react-hot-toast";
 import { Header } from "~~/components/Header";
-import { ThemeProvider } from "~~/components/ThemeProvider";
 import { Providers } from "~~/providers/Providers";
 import { getMetadata } from "~~/utils/scaffold-eth/getMetadata";
 
@@ -10,17 +9,15 @@ export const metadata = getMetadata({ title: "Arrakis challenge", description: "
 
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
   return (
-    <html suppressHydrationWarning>
+    <html>
       <body>
-        <ThemeProvider enableSystem>
-          <Providers>
-            <div className={`flex flex-col min-h-screen bg-neutral-800 relative`}>
-              <Header />
-              <main className="relative flex flex-col flex-1">{children}</main>
-            </div>
-            <Toaster />
-          </Providers>
-        </ThemeProvider>
+        <Providers>
+          <div className={`flex flex-col min-h-screen bg-neutral-800 relative`}>
+            <Header />
+            <main className="relative flex flex-col flex-1">{children}</main>
+          </div>
+          <Toaster />
+        </Providers>
       </body>
     </html>
   );
