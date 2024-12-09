@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import TokenInput from "./TokenInput";
+import TransactionProgress from "./TransactionProgress";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
@@ -9,7 +10,7 @@ import { TokenIcon } from "@web3icons/react";
 import { formatUnits } from "viem";
 import { arbitrum } from "viem/chains";
 import { useAccount, useBalance, useSwitchChain } from "wagmi";
-import { TOKENS } from "~~/contracts/contracts";
+import { ARRAKIS_CONTRACTS, TOKENS as CONTRACT_TOKENS } from "~~/contracts/contracts";
 import { useTokenPrice } from "~~/hooks/useTokenPrice";
 
 interface TokenData {
@@ -26,9 +27,11 @@ const AddLiquidity: React.FC = () => {
   const { address: userAddress, isConnected, chainId: currentChainId } = useAccount();
   const { switchChain } = useSwitchChain();
   const { openConnectModal } = useConnectModal();
-  const { price: ethPrice, isError: isPriceError } = useTokenPrice("WETH");
+  const { price: ethPrice, isError: isEthPriceError } = useTokenPrice("ETHUSD");
+  const { price: rethPrice, isError: isRethPriceError } = useTokenPrice("rETHETH");
+  const [isTransactionProgressOpen, setIsTransactionProgressOpen] = useState(false);
   const [tokens, setTokens] = useState<TokenState>({
-    USDC: {
+    rETH: {
       amount: "",
       balance: 0,
       usdValue: "$0.00",
@@ -40,30 +43,30 @@ const AddLiquidity: React.FC = () => {
     },
   });
 
-  // Fetch USDC balance
-  const { data: usdcBalance } = useBalance({
+  // Fetch rETH balance
+  const { data: rethBalance } = useBalance({
     address: userAddress,
-    token: TOKENS.USDC.address,
+    token: CONTRACT_TOKENS.rETH.address,
   });
 
   // Fetch WETH balance
   const { data: wethBalance } = useBalance({
     address: userAddress,
-    token: TOKENS.WETH.address,
+    token: CONTRACT_TOKENS.WETH.address,
   });
 
-  // Update USDC balance
+  // Update rETH balance
   useEffect(() => {
-    if (usdcBalance) {
+    if (rethBalance) {
       setTokens(prev => ({
         ...prev,
-        USDC: {
-          ...prev.USDC,
-          balance: Number(formatUnits(usdcBalance.value, TOKENS.USDC.decimals)),
+        rETH: {
+          ...prev.rETH,
+          balance: Number(formatUnits(rethBalance.value, CONTRACT_TOKENS.rETH.decimals)),
         },
       }));
     }
-  }, [usdcBalance]);
+  }, [rethBalance]);
 
   // Update WETH balance
   useEffect(() => {
@@ -72,7 +75,7 @@ const AddLiquidity: React.FC = () => {
         ...prev,
         WETH: {
           ...prev.WETH,
-          balance: Number(formatUnits(wethBalance.value, TOKENS.WETH.decimals)),
+          balance: Number(formatUnits(wethBalance.value, CONTRACT_TOKENS.WETH.decimals)),
         },
       }));
     }
@@ -89,8 +92,8 @@ const AddLiquidity: React.FC = () => {
 
     let usdValue = 0;
 
-    if (token === "USDC") {
-      usdValue = Number(newAmount); // USDC is pegged to USD
+    if (token === "rETH") {
+      usdValue = Number(newAmount) * rethPrice * ethPrice;
     } else {
       usdValue = Number(newAmount) * ethPrice;
     }
@@ -109,8 +112,8 @@ const AddLiquidity: React.FC = () => {
     const balance = tokens[token].balance;
     let usdValue = 0;
 
-    if (token === "USDC") {
-      usdValue = balance;
+    if (token === "rETH") {
+      usdValue = balance * rethPrice * ethPrice;
     } else {
       usdValue = balance * ethPrice;
     }
@@ -123,10 +126,6 @@ const AddLiquidity: React.FC = () => {
         usdValue: `$${usdValue.toFixed(2)}`,
       },
     }));
-  };
-
-  const handleAddLiquidity = () => {
-    console.log("add liquidity");
   };
 
   const buttonStates = {
@@ -145,57 +144,82 @@ const AddLiquidity: React.FC = () => {
     addLiquidity: {
       condition: isConnected && currentChainId === arbitrum.id,
       text: "CONFIRM",
-      action: handleAddLiquidity,
+      action: () => setIsTransactionProgressOpen(true),
       disabled:
-        !Number(tokens.USDC.amount) ||
+        !Number(tokens.rETH.amount) ||
         !Number(tokens.WETH.amount) ||
-        Number(tokens.USDC.amount) > tokens.USDC.balance ||
+        Number(tokens.rETH.amount) > tokens.rETH.balance ||
         Number(tokens.WETH.amount) > tokens.WETH.balance ||
-        isPriceError,
+        isEthPriceError ||
+        isRethPriceError,
     },
   };
 
   const currentState = Object.values(buttonStates).find(state => state.condition);
 
+  const approvalTokens = [
+    {
+      address: CONTRACT_TOKENS.rETH.address,
+      symbol: CONTRACT_TOKENS.rETH.symbol,
+      decimals: CONTRACT_TOKENS.rETH.decimals,
+      amount: tokens.rETH.amount,
+    },
+    {
+      address: CONTRACT_TOKENS.WETH.address,
+      symbol: CONTRACT_TOKENS.WETH.symbol,
+      decimals: CONTRACT_TOKENS.WETH.decimals,
+      amount: tokens.WETH.amount,
+    },
+  ];
+
   return (
-    <Card className="w-full max-w-md bg-neutral-900 border-amber-900/20 mt-12">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
-        <CardTitle className="text-2xl font-semibold text-amber-50">Add liquidity</CardTitle>
-        <div className="flex items-center space-x-2">
-          <div className="flex items-center space-x-1">
-            <div className="w-6 h-6 rounded-full flex items-center justify-center bg-amber-50">
-              <TokenIcon symbol="usdc" variant="branded" className="w-6 h-6" />
+    <div className="w-full flex justify-center mt-12">
+      <Card className="w-full max-w-md bg-neutral-900 border-amber-900/20 ">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
+          <CardTitle className="text-2xl font-semibold text-amber-50">Add liquidity</CardTitle>
+          <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1">
+              <div className="w-6 h-6 rounded-full flex items-center justify-center bg-amber-50">
+                <TokenIcon symbol="eth" variant="branded" />
+              </div>
+              <div className="w-6 h-6 rounded-full flex items-center justify-center bg-amber-50">
+                <TokenIcon symbol="rpl" variant="branded" />
+              </div>
             </div>
-            <div className="w-6 h-6 rounded-full flex items-center justify-center bg-amber-50">
-              <TokenIcon symbol="eth" variant="branded" />
-            </div>
+            <span className="text-amber-100 font-medium">WETH/rETH</span>
           </div>
-          <span className="text-amber-100 font-medium">USDC/WETH</span>
-        </div>
-      </CardHeader>
+        </CardHeader>
 
-      <CardContent className="space-y-3">
-        {Object.entries(tokens).map(([token, data]) => (
-          <TokenInput
-            key={token}
-            token={token}
-            amount={data.amount}
-            onAmountChange={handleAmountChange(token)}
-            balance={data.balance}
-            onMaxClick={handleMaxClick(token)}
-            usdValue={data.usdValue}
-          />
-        ))}
+        <CardContent className="space-y-3">
+          {Object.entries(tokens).map(([token, data]) => (
+            <TokenInput
+              key={token}
+              token={token}
+              amount={data.amount}
+              onAmountChange={handleAmountChange(token)}
+              balance={data.balance}
+              onMaxClick={handleMaxClick(token)}
+              usdValue={data.usdValue}
+            />
+          ))}
 
-        <Button
-          className="w-full bg-amber-600 hover:bg-amber-700 text-neutral-900 font-medium text-sm"
-          disabled={currentState?.disabled}
-          onClick={currentState?.action}
-        >
-          {currentState?.text}
-        </Button>
-      </CardContent>
-    </Card>
+          <Button
+            className="w-full bg-amber-600 hover:bg-amber-700 text-neutral-900 font-medium text-sm"
+            disabled={currentState?.disabled}
+            onClick={currentState?.action}
+          >
+            {currentState?.text}
+          </Button>
+        </CardContent>
+      </Card>
+      <TransactionProgress
+        isOpen={isTransactionProgressOpen}
+        onClose={() => setIsTransactionProgressOpen(false)}
+        tokens={approvalTokens}
+        spenderAddress={ARRAKIS_CONTRACTS.router.address}
+        onSuccess={() => console.log("trigger add liquidity")}
+      />
+    </div>
   );
 };
 
