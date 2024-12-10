@@ -72,7 +72,7 @@ export const Header: React.FC = () => {
           </Sheet>
 
           {/* Desktop Logo & Brand */}
-          <Link href="/" className="flex items-center gap-2 ml-4 mr-6 h-10">
+          <Link href="/" className="items-center gap-2 ml-4 mr-6 h-10 hidden sm:flex">
             <div className="flex flex-col">
               <h2 className="font-bold text-xl text-amber-50 mb-0 leading-none">Arrakis challenge</h2>
             </div>
