@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import TokenInput from "./TokenInput";
-import TransactionProgress from "./TransactionProgress";
+import { TransactionModal } from "./TransactionModal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
@@ -31,22 +31,16 @@ const AddLiquidity: React.FC = () => {
   const { price: rethPrice, isError: isRethPriceError } = useTokenPrice("rETHETH");
   const [isTransactionProgressOpen, setIsTransactionProgressOpen] = useState(false);
   const [tokens, setTokens] = useState<TokenState>({
-    rETH: {
-      amount: "",
-      balance: 0,
-      usdValue: "$0.00",
-    },
     WETH: {
       amount: "",
       balance: 0,
       usdValue: "$0.00",
     },
-  });
-
-  // Fetch rETH balance
-  const { data: rethBalance } = useBalance({
-    address: userAddress,
-    token: CONTRACT_TOKENS.rETH.address,
+    rETH: {
+      amount: "",
+      balance: 0,
+      usdValue: "$0.00",
+    },
   });
 
   // Fetch WETH balance
@@ -55,18 +49,11 @@ const AddLiquidity: React.FC = () => {
     token: CONTRACT_TOKENS.WETH.address,
   });
 
-  // Update rETH balance
-  useEffect(() => {
-    if (rethBalance) {
-      setTokens(prev => ({
-        ...prev,
-        rETH: {
-          ...prev.rETH,
-          balance: Number(formatUnits(rethBalance.value, CONTRACT_TOKENS.rETH.decimals)),
-        },
-      }));
-    }
-  }, [rethBalance]);
+  // Fetch rETH balance
+  const { data: rethBalance } = useBalance({
+    address: userAddress,
+    token: CONTRACT_TOKENS.rETH.address,
+  });
 
   // Update WETH balance
   useEffect(() => {
@@ -80,6 +67,19 @@ const AddLiquidity: React.FC = () => {
       }));
     }
   }, [wethBalance]);
+
+  // Update rETH balance
+  useEffect(() => {
+    if (rethBalance) {
+      setTokens(prev => ({
+        ...prev,
+        rETH: {
+          ...prev.rETH,
+          balance: Number(formatUnits(rethBalance.value, CONTRACT_TOKENS.rETH.decimals)),
+        },
+      }));
+    }
+  }, [rethBalance]);
 
   const handleAmountChange = (token: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const newAmount = e.target.value;
@@ -159,16 +159,16 @@ const AddLiquidity: React.FC = () => {
 
   const approvalTokens = [
     {
-      address: CONTRACT_TOKENS.rETH.address,
-      symbol: CONTRACT_TOKENS.rETH.symbol,
-      decimals: CONTRACT_TOKENS.rETH.decimals,
-      amount: tokens.rETH.amount,
-    },
-    {
       address: CONTRACT_TOKENS.WETH.address,
       symbol: CONTRACT_TOKENS.WETH.symbol,
       decimals: CONTRACT_TOKENS.WETH.decimals,
       amount: tokens.WETH.amount,
+    },
+    {
+      address: CONTRACT_TOKENS.rETH.address,
+      symbol: CONTRACT_TOKENS.rETH.symbol,
+      decimals: CONTRACT_TOKENS.rETH.decimals,
+      amount: tokens.rETH.amount,
     },
   ];
 
@@ -202,7 +202,6 @@ const AddLiquidity: React.FC = () => {
               usdValue={data.usdValue}
             />
           ))}
-
           <Button
             className="w-full bg-amber-600 hover:bg-amber-700 text-neutral-900 font-medium text-sm"
             disabled={currentState?.disabled}
@@ -212,12 +211,12 @@ const AddLiquidity: React.FC = () => {
           </Button>
         </CardContent>
       </Card>
-      <TransactionProgress
+      <TransactionModal
         isOpen={isTransactionProgressOpen}
         onClose={() => setIsTransactionProgressOpen(false)}
         tokens={approvalTokens}
         spenderAddress={ARRAKIS_CONTRACTS.router.address}
-        onSuccess={() => console.log("trigger add liquidity")}
+        onSuccess={() => console.log("Liquidity Added")}
       />
     </div>
   );
