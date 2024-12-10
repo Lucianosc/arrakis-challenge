@@ -7,7 +7,7 @@ import {
   trustWallet,
   walletConnectWallet,
 } from "@rainbow-me/rainbowkit/wallets";
-import { Chain, createClient } from "viem";
+import { createClient } from "viem";
 import { createConfig, http } from "wagmi";
 import { arbitrum, mainnet } from "wagmi/chains";
 
@@ -50,11 +50,14 @@ const connectors = connectorsForWallets(
   },
 );
 
-export const supportedChains = [tenderlyArbitrum, mainnet];
+export const supportedChains = [
+  { ...tenderlyArbitrum, requiredConfirmations: 1 }, // hardcoded to 1 because Tenderly fork does not run on time intervals
+  { ...mainnet, requiredConfirmations: 1 },
+];
 
 export const wagmiConfig = createConfig({
-  chains: supportedChains,
-  client({ chain }: { chain: Chain }) {
+  chains: [tenderlyArbitrum, mainnet],
+  client({ chain }) {
     return createClient({
       chain,
       transport: http(process.env.NEXT_PUBLIC_TENDERLY_RPC_URL),
