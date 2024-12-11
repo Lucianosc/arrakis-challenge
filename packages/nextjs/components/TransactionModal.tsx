@@ -1,244 +1,104 @@
-import React, { useEffect, useState } from "react";
-import { ApprovalToken, Step, TransactionStep } from "./TransactionStep";
+import React, { useEffect } from "react";
+import { Step, TransactionStep } from "./TransactionStep";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Address, Hash, erc20Abi, parseUnits } from "viem";
-import { BaseError, useChainId, useSimulateContract, useTransactionConfirmations, useWriteContract } from "wagmi";
+import { Address } from "viem";
+import { useChainId } from "wagmi";
 import { supportedChains } from "~~/config/wagmi";
 import { ARRAKIS_CONTRACTS } from "~~/contracts/contracts";
+import { useAddLiquidity } from "~~/hooks/useAddLiquidity";
+import { useHandleAllowance } from "~~/hooks/useHandleAllowance";
 
-interface TransactionModalProps {
+export type Token = {
+  address: Address;
+  symbol: string;
+  amount: string;
+  decimals: number;
+};
+
+type TransactionModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  tokens: ApprovalToken[];
-  spenderAddress: Address;
+  tokens: readonly [Token, Token];
   onSuccess?: () => void;
-}
+};
 
-export const TransactionModal: React.FC<TransactionModalProps> = ({
-  isOpen,
-  onClose,
-  tokens,
-  spenderAddress,
-  onSuccess,
-}) => {
-  const currentChainId = useChainId();
-  const requiredConfirmations = supportedChains.find(chain => chain.id == currentChainId)?.requiredConfirmations || 0;
+export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tokens, onSuccess }) => {
+  const chainId = useChainId();
+  const requiredConfirmations = supportedChains.find(chain => chain.id === chainId)?.requiredConfirmations || 0;
 
-  const [currentStep, setCurrentStep] = useState(0);
-  const [steps, setSteps] = useState<Step[]>([
-    { id: 0, title: `${tokens[0].symbol} approval`, status: "idle", confirmations: 0 },
-    { id: 1, title: `${tokens[1].symbol} approval`, status: "idle", confirmations: 0 },
-    { id: 2, title: "Add liquidity", status: "idle", confirmations: 0 },
-  ]);
-
-  // Create confirmation trackers for each step with proper query configuration
-  const { data: confirmationsStep1, isError: isErrorStep1 } = useTransactionConfirmations({
-    hash: steps[0].txHash,
-    query: {
-      enabled: !!steps[0].txHash && steps[0].status === "waiting",
-      refetchInterval: data => {
-        const confirmations = Number(data || 0);
-        return confirmations >= requiredConfirmations ? false : 1000;
-      },
+  // Handle token approvals
+  const token0Allowance = useHandleAllowance({
+    token: {
+      address: tokens[0].address,
+      amount: tokens[0].amount,
+      decimals: tokens[0].decimals,
+    },
+    spenderAddress: ARRAKIS_CONTRACTS.router.address,
+    onSuccess: () => {
+      // When first token is approved, trigger second token approval
+      token1Allowance.triggerApproval();
     },
   });
 
-  const { data: confirmationsStep2, isError: isErrorStep2 } = useTransactionConfirmations({
-    hash: steps[1].txHash,
-    query: {
-      enabled: !!steps[1].txHash && steps[1].status === "waiting",
-      refetchInterval: data => {
-        const confirmations = Number(data || 0);
-        return confirmations >= requiredConfirmations ? false : 1000;
-      },
+  const token1Allowance = useHandleAllowance({
+    token: {
+      address: tokens[1].address,
+      amount: tokens[1].amount,
+      decimals: tokens[1].decimals,
+    },
+    spenderAddress: ARRAKIS_CONTRACTS.router.address,
+    onSuccess: () => {
+      // When second token is approved, proceed with adding liquidity
+      addLiquidity.triggerAddLiquidity();
     },
   });
 
-  const { data: confirmationsStep3, isError: isErrorStep3 } = useTransactionConfirmations({
-    hash: steps[2].txHash,
-    query: {
-      enabled: !!steps[2].txHash && steps[2].status === "waiting",
-      refetchInterval: data => {
-        const confirmations = Number(data || 0);
-        return confirmations >= requiredConfirmations ? false : 1000;
-      },
-    },
+  const addLiquidity = useAddLiquidity({
+    tokens: [
+      { amount: tokens[0].amount, decimals: tokens[0].decimals },
+      { amount: tokens[1].amount, decimals: tokens[1].decimals },
+    ],
+    onSuccess,
   });
 
-  const { data: simulateToken0Approval } = useSimulateContract({
-    address: tokens[0].address,
-    abi: erc20Abi,
-    functionName: "approve",
-    args: [spenderAddress, parseUnits(tokens[0].amount, tokens[0].decimals)],
-  });
-
-  const { data: simulateToken1Approval } = useSimulateContract({
-    address: tokens[1].address,
-    abi: erc20Abi,
-    functionName: "approve",
-    args: [spenderAddress, parseUnits(tokens[1].amount, tokens[1].decimals)],
-  });
-
-  const addLiquidityArgs = [{}];
-
-  const { data: simulateAddLiquidity } = useSimulateContract({
-    address: ARRAKIS_CONTRACTS.router.address,
-    abi: ARRAKIS_CONTRACTS.router.abi,
-    functionName: "addLiquidity",
-    args: addLiquidityArgs,
-  });
-
-  const { writeContractAsync: approveToken0, error: contractWriteError0 } = useWriteContract();
-  const { writeContractAsync: approveToken1, error: contractWriteError1 } = useWriteContract();
-  const { writeContractAsync: addLiquidity, error: contractWriteError2 } = useWriteContract();
-
-  // Update steps based on confirmations and handle errors
-  useEffect(() => {
-    const updateStep = (stepIndex: number, confirmations: bigint | undefined, isError: boolean) => {
-      if (confirmations !== undefined || isError) {
-        setSteps(prev =>
-          prev.map(step =>
-            step.id === stepIndex
-              ? {
-                  ...step,
-                  confirmations: Number(confirmations || 0),
-                  status: isError
-                    ? "error"
-                    : Number(confirmations || 0) >= requiredConfirmations
-                      ? "success"
-                      : "waiting",
-                  error: isError ? "Failed to confirm transaction" : undefined,
-                }
-              : step,
-          ),
-        );
-
-        // Progress to next step if current step is complete
-        if (stepIndex === currentStep && Number(confirmations || 0) >= requiredConfirmations) {
-          if (currentStep < 2) {
-            setCurrentStep(prev => prev + 1);
-            setTimeout(() => {
-              triggerTx(currentStep + 1);
-            }, 1000);
-          } else if (currentStep === 2) {
-            onSuccess?.();
-          }
-        }
-      }
-    };
-
-    updateStep(0, confirmationsStep1, isErrorStep1);
-    updateStep(1, confirmationsStep2, isErrorStep2);
-    updateStep(2, confirmationsStep3, isErrorStep3);
-  }, [
-    confirmationsStep1,
-    confirmationsStep2,
-    confirmationsStep3,
-    isErrorStep1,
-    isErrorStep2,
-    isErrorStep3,
-    currentStep,
-    requiredConfirmations,
-  ]);
-
-  // Effect to handle contract errors
-  useEffect(() => {
-    if (contractWriteError0) {
-      setSteps(prev =>
-        prev.map(step =>
-          step.id === 0
-            ? {
-                ...step,
-                status: "error",
-                error: (contractWriteError0 as BaseError).shortMessage || "Transaction Error",
-              }
-            : step,
-        ),
-      );
-    }
-    if (contractWriteError1) {
-      setSteps(prev =>
-        prev.map(step =>
-          step.id === 1
-            ? {
-                ...step,
-                status: "error",
-                error: (contractWriteError1 as BaseError).shortMessage || "Transaction Error",
-              }
-            : step,
-        ),
-      );
-    }
-    if (contractWriteError2) {
-      setSteps(prev =>
-        prev.map(step =>
-          step.id === 2
-            ? {
-                ...step,
-                status: "error",
-                error: (contractWriteError2 as BaseError).shortMessage || "Transaction Error",
-              }
-            : step,
-        ),
-      );
-    }
-  }, [contractWriteError0, contractWriteError1, contractWriteError2]);
-
-  const triggerTx = async (txN: number) => {
-    try {
-      setSteps(prev => prev.map(step => (step.id === txN ? { ...step, status: "pending" } : step)));
-
-      let txHash: Hash | undefined;
-
-      switch (txN) {
-        case 0:
-          if (!simulateToken0Approval?.request) {
-            throw new Error("Failed to simulate token0 approval");
-          }
-          txHash = await approveToken0(simulateToken0Approval.request);
-          break;
-
-        case 1:
-          if (!simulateToken1Approval?.request) {
-            throw new Error("Failed to simulate token1 approval");
-          }
-          txHash = await approveToken1(simulateToken1Approval.request);
-          break;
-
-        case 2:
-          if (!simulateAddLiquidity?.request) {
-            throw new Error("Failed to simulate addLiquidity");
-          }
-          txHash = await addLiquidity(simulateAddLiquidity.request);
-          break;
-      }
-
-      if (txHash) {
-        setSteps(prev =>
-          prev.map(step =>
-            step.id === txN
-              ? {
-                  ...step,
-                  status: "waiting",
-                  txHash: txHash,
-                }
-              : step,
-          ),
-        );
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  // Effect to initialize and start first transaction
+  // Start process when modal opens
   useEffect(() => {
     if (isOpen) {
-      setSteps(prev => prev.map(step => (step.id === 0 ? { ...step, status: "idle" } : step)));
-      triggerTx(0);
+      token0Allowance.reset();
+      token1Allowance.reset();
+      addLiquidity.reset();
+      token0Allowance.triggerApproval();
     }
   }, [isOpen]);
+
+  // Combine all steps for display
+  const steps: Step[] = [
+    {
+      id: 0,
+      title: `${tokens[0].symbol} approval`,
+      status: token0Allowance.status,
+      confirmations: token0Allowance.confirmations,
+      error: token0Allowance.error,
+      txHash: token0Allowance.txHash,
+    },
+    {
+      id: 1,
+      title: `${tokens[1].symbol} approval`,
+      status: token1Allowance.status,
+      confirmations: token1Allowance.confirmations,
+      error: token1Allowance.error,
+      txHash: token1Allowance.txHash,
+    },
+    {
+      id: 2,
+      title: "Add liquidity",
+      status: addLiquidity.status,
+      confirmations: addLiquidity.confirmations,
+      error: addLiquidity.error,
+      txHash: addLiquidity.txHash,
+    },
+  ];
 
   return (
     <div
@@ -264,7 +124,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         <CardContent className="space-y-7">
           <div className="flex flex-col gap-7">
             {steps.map(step => (
-              <TransactionStep key={step.id} step={step} requiredConfirmations={requiredConfirmations} />
+              <TransactionStep key={`${step.id}_txStep`} {...step} requiredConfirmations={requiredConfirmations} />
             ))}
           </div>
         </CardContent>
