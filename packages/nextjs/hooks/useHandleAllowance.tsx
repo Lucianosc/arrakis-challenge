@@ -20,59 +20,63 @@ export const useHandleAllowance = ({
   onSuccess,
   requiredConfirmations,
 }: UseHandleAllowanceParams) => {
-  const [allowanceStatus, setAllowanceStatus] = useState<TransactionStatus>({
+  const [txState, setTxState] = useState<TransactionStatus>({
     status: "idle",
     confirmations: 0,
   });
 
   const { writeContractAsync: writeContract, error: contractWriteError } = useWriteContract();
 
-  // Track approval transaction confirmations
+  // Confirmation tracking
   const { data: confirmations } = useTransactionConfirmations({
-    hash: allowanceStatus.txHash,
+    hash: txState.txHash,
     query: {
-      enabled: !!allowanceStatus.txHash && allowanceStatus.status === "waiting",
+      enabled: Boolean(txState.txHash) && txState.status === "waiting",
       refetchInterval: data => {
-        const confirmations = Number(data || 0);
-        return confirmations >= requiredConfirmations ? false : 1000;
+        const confirmedBlocks = Number(data || 0);
+        return confirmedBlocks >= requiredConfirmations ? false : 1000;
       },
     },
   });
 
-  // Update status based on confirmations
+  // Confirmations and success effect
   useEffect(() => {
-    if (confirmations !== undefined && allowanceStatus.status === "waiting") {
-      const newConfirmations = Number(confirmations);
-      setAllowanceStatus(prev => ({
-        ...prev,
-        confirmations: newConfirmations,
-        status: newConfirmations >= requiredConfirmations ? "success" : "waiting",
-      }));
+    if (!confirmations || txState.status !== "waiting") return;
 
-      if (newConfirmations >= requiredConfirmations) {
-        onSuccess?.();
-      }
+    const confirmedBlocks = Number(confirmations);
+    const isConfirmed = confirmedBlocks >= requiredConfirmations;
+
+    setTxState(current => ({
+      ...current,
+      confirmations: confirmedBlocks,
+      status: isConfirmed ? "success" : "waiting",
+    }));
+
+    if (isConfirmed) {
+      onSuccess?.();
     }
-  }, [confirmations, requiredConfirmations, onSuccess]);
+  }, [confirmations, requiredConfirmations, onSuccess, txState.status]);
 
-  // Handle contract errors
+  // Error handling effect
   useEffect(() => {
-    if (contractWriteError) {
-      setAllowanceStatus(prev => ({
-        ...prev,
-        status: "error",
-        error: (contractWriteError as BaseError).shortMessage || "Transaction Error",
-      }));
-    }
+    if (!contractWriteError) return;
+
+    setTxState(current => ({
+      ...current,
+      status: "error",
+      error: (contractWriteError as BaseError).shortMessage || "Transaction Error",
+    }));
   }, [contractWriteError]);
 
   const triggerApproval = async () => {
     try {
-      setAllowanceStatus(prev => ({
-        ...prev,
+      // Start approval
+      setTxState(current => ({
+        ...current,
         status: "pending",
       }));
 
+      // Send transaction
       const txHash = await writeContract({
         address: token.address,
         abi: erc20Abi,
@@ -80,9 +84,10 @@ export const useHandleAllowance = ({
         args: [spenderAddress, parseUnits(token.amount, token.decimals)],
       });
 
+      // Update state with transaction hash
       if (txHash) {
-        setAllowanceStatus(prev => ({
-          ...prev,
+        setTxState(current => ({
+          ...current,
           status: "waiting",
           txHash,
           error: undefined,
@@ -90,28 +95,23 @@ export const useHandleAllowance = ({
       }
     } catch (error) {
       console.error(error);
-      setAllowanceStatus(prev => ({
-        ...prev,
-        status: "error",
-        error: "Failed to approve token",
-      }));
     }
   };
 
   const reset = () => {
-    setAllowanceStatus({
+    setTxState({
       status: "idle",
       confirmations: 0,
     });
   };
 
   return {
-    status: allowanceStatus.status,
-    confirmations: allowanceStatus.confirmations,
-    error: allowanceStatus.error,
-    txHash: allowanceStatus.txHash,
+    status: txState.status,
+    confirmations: txState.confirmations,
+    error: txState.error,
+    txHash: txState.txHash,
     triggerApproval,
     reset,
-    isComplete: allowanceStatus.status === "success",
+    isComplete: txState.status === "success",
   };
 };
