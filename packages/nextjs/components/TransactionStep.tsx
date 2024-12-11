@@ -1,6 +1,6 @@
 import React from "react";
 import { Check, ExternalLink, Loader2, X } from "lucide-react";
-import { Address, Hash } from "viem";
+import { Hash } from "viem";
 
 export type TransactionStatus = {
   status: "idle" | "pending" | "waiting" | "success" | "error";

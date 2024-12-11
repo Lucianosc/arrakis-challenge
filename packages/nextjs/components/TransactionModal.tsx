@@ -35,6 +35,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
       decimals: tokens[0].decimals,
     },
     spenderAddress: ARRAKIS_CONTRACTS.router.address,
+    requiredConfirmations,
     onSuccess: () => {
       // When first token is approved, trigger second token approval
       token1Allowance.triggerApproval();
@@ -48,6 +49,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
       decimals: tokens[1].decimals,
     },
     spenderAddress: ARRAKIS_CONTRACTS.router.address,
+    requiredConfirmations,
     onSuccess: () => {
       // When second token is approved, proceed with adding liquidity
       addLiquidity.triggerAddLiquidity();
@@ -59,6 +61,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
       { amount: tokens[0].amount, decimals: tokens[0].decimals },
       { amount: tokens[1].amount, decimals: tokens[1].decimals },
     ],
+    requiredConfirmations,
     onSuccess,
   });
 

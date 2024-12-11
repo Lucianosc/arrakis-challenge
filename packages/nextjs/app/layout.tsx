@@ -1,6 +1,5 @@
 import "@/styles/globals.css";
 import "@rainbow-me/rainbowkit/styles.css";
-import { Toaster } from "react-hot-toast";
 import { Header } from "~~/components/Header";
 import { Providers } from "~~/providers/Providers";
 import { getMetadata } from "~~/utils/scaffold-eth/getMetadata";
@@ -16,7 +15,6 @@ const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
             <Header />
             <main className="relative flex flex-col flex-1">{children}</main>
           </div>
-          <Toaster />
         </Providers>
       </body>
     </html>
