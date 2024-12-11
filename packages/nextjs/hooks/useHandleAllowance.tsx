@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { Address, Hash, erc20Abi, parseUnits } from "viem";
-import { BaseError, useChainId, useReadContract, useTransactionConfirmations, useWriteContract } from "wagmi";
+import { Address, erc20Abi, parseUnits } from "viem";
+import { BaseError, useTransactionConfirmations, useWriteContract } from "wagmi";
 import { TransactionStatus } from "~~/components/TransactionStep";
-import { supportedChains } from "~~/config/wagmi";
 
 interface UseHandleAllowanceParams {
   token: {
@@ -10,14 +9,17 @@ interface UseHandleAllowanceParams {
     amount: string;
     decimals: number;
   };
+  requiredConfirmations: number;
   spenderAddress: Address;
   onSuccess?: () => void;
 }
 
-export const useHandleAllowance = ({ token, spenderAddress, onSuccess }: UseHandleAllowanceParams) => {
-  const chainId = useChainId();
-  const requiredConfirmations = supportedChains.find(chain => chain.id === chainId)?.requiredConfirmations || 0;
-
+export const useHandleAllowance = ({
+  token,
+  spenderAddress,
+  onSuccess,
+  requiredConfirmations,
+}: UseHandleAllowanceParams) => {
   const [allowanceStatus, setAllowanceStatus] = useState<TransactionStatus>({
     status: "idle",
     confirmations: 0,

@@ -1,60 +1,51 @@
 import { useEffect, useState } from "react";
-import { Address, Hash, parseUnits } from "viem";
-import {
-  BaseError,
-  useAccount,
-  useChainId,
-  useReadContract,
-  useTransactionConfirmations,
-  useWriteContract,
-} from "wagmi";
+import { Address, parseUnits, zeroAddress } from "viem";
+import { BaseError, useAccount, useReadContract, useTransactionConfirmations, useWriteContract } from "wagmi";
 import { TransactionStatus } from "~~/components/TransactionStep";
-import { supportedChains } from "~~/config/wagmi";
-import { SLIPPAGE } from "~~/contracts/constants";
 import { ARRAKIS_CONTRACTS } from "~~/contracts/contracts";
 
-interface UseAddLiquidityParams {
-  tokens: [
-    {
-      amount: string;
-      decimals: number;
-    },
-    {
-      amount: string;
-      decimals: number;
-    },
-  ];
-  onSuccess?: () => void;
-}
-
-const calculateSlippage = (amount: string, decimals: number) => {
-  if (!amount) return { min: 0n, max: 0n };
-
-  const baseAmount = parseUnits(amount, decimals);
-  const slippageAmount = (baseAmount * BigInt(Math.floor(SLIPPAGE * 100))) / 10000n;
-
-  return {
-    min: baseAmount - slippageAmount,
-    max: baseAmount + slippageAmount,
-  };
+type Token = {
+  amount: string;
+  decimals: number;
 };
 
-export const useAddLiquidity = ({ tokens, onSuccess }: UseAddLiquidityParams) => {
-  const chainId = useChainId();
-  const requiredConfirmations = supportedChains.find(chain => chain.id === chainId)?.requiredConfirmations || 0;
-  const account = useAccount();
+type AddLiquidityParams = {
+  tokens: [Token, Token];
+  onSuccess?: () => void;
+  requiredConfirmations: number;
+};
 
-  const [addLiquidityStatus, setAddLiquidityStatus] = useState<TransactionStatus>({
+type AddLiquidityArgs = {
+  amount0Max: bigint;
+  amount1Max: bigint;
+  amount0Min: bigint;
+  amount1Min: bigint;
+  amountSharesMin: bigint;
+  vault: Address;
+  receiver: Address;
+  gauge: Address;
+};
+
+// Custom hook for managing liquidity addition to Arrakis vaults
+export const useAddLiquidity = ({ tokens, onSuccess, requiredConfirmations }: AddLiquidityParams) => {
+  const { address: userAddress } = useAccount();
+  const { writeContractAsync, error: writeError } = useWriteContract();
+
+  // Track transaction status and confirmations
+  const [status, setStatus] = useState<TransactionStatus>({
     status: "idle",
     confirmations: 0,
   });
 
-  const { writeContractAsync: writeContract, error: contractWriteError } = useWriteContract();
+  // Convert token amounts to the correct decimal precision
+  const amount0Max = tokens[0].amount ? parseUnits(tokens[0].amount, tokens[0].decimals) : 0n;
+  const amount1Max = tokens[1].amount ? parseUnits(tokens[1].amount, tokens[1].decimals) : 0n;
 
-  const { min: amount0Min, max: amount0Max } = calculateSlippage(tokens[0].amount, tokens[0].decimals);
-  const { min: amount1Min, max: amount1Max } = calculateSlippage(tokens[1].amount, tokens[1].decimals);
+  // Calculate minimum amounts (5% slippage tolerance)
+  const amount0Min = (amount0Max * 95n) / 100n;
+  const amount1Min = (amount1Max * 95n) / 100n;
 
-  // Read expected mint amounts from resolver
+  // Get expected LP token amounts from the resolver contract
   const { data: mintAmounts } = useReadContract({
     address: ARRAKIS_CONTRACTS.resolver.address,
     abi: ARRAKIS_CONTRACTS.resolver.abi,
@@ -65,11 +56,11 @@ export const useAddLiquidity = ({ tokens, onSuccess }: UseAddLiquidityParams) =>
     },
   }) as { data: readonly [bigint, bigint, bigint] | undefined };
 
-  // Track add liquidity confirmation
+  // Monitor transaction confirmations
   const { data: confirmations } = useTransactionConfirmations({
-    hash: addLiquidityStatus.txHash,
+    hash: status.txHash,
     query: {
-      enabled: !!addLiquidityStatus.txHash && addLiquidityStatus.status === "waiting",
+      enabled: !!status.txHash && status.status === "waiting",
       refetchInterval: data => {
         const confirmations = Number(data || 0);
         return confirmations >= requiredConfirmations ? false : 1000;
@@ -77,93 +68,87 @@ export const useAddLiquidity = ({ tokens, onSuccess }: UseAddLiquidityParams) =>
     },
   });
 
-  // Update status based on confirmations
+  // Update status when transaction reaches required confirmations
   useEffect(() => {
-    if (confirmations !== undefined && addLiquidityStatus.status === "waiting") {
-      const newConfirmations = Number(confirmations);
-      setAddLiquidityStatus(prev => ({
-        ...prev,
-        confirmations: newConfirmations,
-        status: newConfirmations >= requiredConfirmations ? "success" : "waiting",
-      }));
+    if (confirmations === undefined || status.status !== "waiting") return;
 
-      if (newConfirmations >= requiredConfirmations) {
-        onSuccess?.();
-      }
+    const newConfirmations = Number(confirmations);
+    const isComplete = newConfirmations >= requiredConfirmations;
+
+    setStatus(prev => ({
+      ...prev,
+      confirmations: newConfirmations,
+      status: isComplete ? "success" : "waiting",
+    }));
+
+    if (isComplete) {
+      onSuccess?.();
     }
   }, [confirmations, requiredConfirmations, onSuccess]);
 
-  // Handle contract errors
+  // Handle contract write errors
   useEffect(() => {
-    if (contractWriteError) {
-      setAddLiquidityStatus(prev => ({
-        ...prev,
-        status: "error",
-        error: (contractWriteError as BaseError).shortMessage || "Transaction Error",
-      }));
-    }
-  }, [contractWriteError]);
+    if (!writeError) return;
 
+    setStatus(prev => ({
+      ...prev,
+      status: "error",
+      error: (writeError as BaseError).shortMessage || "Transaction Error",
+    }));
+  }, [writeError]);
+
+  // Main function to add liquidity
   const triggerAddLiquidity = async () => {
     try {
-      setAddLiquidityStatus(prev => ({
-        ...prev,
-        status: "pending",
-      }));
+      setStatus(prev => ({ ...prev, status: "pending" }));
 
-      if (!mintAmounts) throw new Error("Could not fetch mintAmounts");
-      const [amount0, amount1, expectedShares] = mintAmounts;
+      if (!mintAmounts || !userAddress) {
+        throw new Error("Required data not available");
+      }
 
-      const txHash = await writeContract({
+      // Prepare arguments for the addLiquidity contract call
+      const args: AddLiquidityArgs = {
+        amount0Max,
+        amount1Max,
+        amount0Min,
+        amount1Min,
+        amountSharesMin: mintAmounts[2],
+        vault: ARRAKIS_CONTRACTS.vault.address as Address,
+        receiver: userAddress,
+        gauge: zeroAddress as Address,
+      };
+
+      // Execute the addLiquidity transaction
+      const txHash = await writeContractAsync({
         address: ARRAKIS_CONTRACTS.router.address,
         abi: ARRAKIS_CONTRACTS.router.abi,
         functionName: "addLiquidity",
-        args: [
-          {
-            amount0Max,
-            amount1Max,
-            amount0Min,
-            amount1Min,
-            amountSharesMin: 1n,
-            vault: ARRAKIS_CONTRACTS.vault.address as Address,
-            receiver: account.address,
-            gauge: "0x0000000000000000000000000000000000000000" as Address,
-          },
-        ],
+        args: [args],
       });
 
-      if (txHash) {
-        setAddLiquidityStatus(prev => ({
-          ...prev,
-          status: "waiting",
-          txHash,
-          error: undefined,
-        }));
-      }
+      setStatus({
+        status: "waiting",
+        confirmations: 0,
+        txHash,
+      });
     } catch (error) {
-      console.error(error);
-      setAddLiquidityStatus(prev => ({
-        ...prev,
+      console.error("Add liquidity error:", error);
+      setStatus({
         status: "error",
+        confirmations: 0,
         error: "Failed to add liquidity",
-      }));
+      });
     }
   };
 
-  const reset = () => {
-    setAddLiquidityStatus({
-      status: "idle",
-      confirmations: 0,
-    });
-  };
-
+  // Return hook interface with status and control functions
   return {
-    status: addLiquidityStatus.status,
-    confirmations: addLiquidityStatus.confirmations,
-    error: addLiquidityStatus.error,
-    txHash: addLiquidityStatus.txHash,
+    status: status.status,
+    confirmations: status.confirmations,
+    error: status.error,
+    txHash: status.txHash,
     triggerAddLiquidity,
-    reset,
-    isComplete: addLiquidityStatus.status === "success",
+    reset: () => setStatus({ status: "idle", confirmations: 0 }),
+    isComplete: status.status === "success",
   };
 };

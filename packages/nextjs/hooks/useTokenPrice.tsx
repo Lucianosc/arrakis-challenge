@@ -1,6 +1,6 @@
 import { formatUnits } from "viem";
 import { useReadContract } from "wagmi";
-import { CHAINLINK_FEEDS, CHAINLINK_PRICE_FEED_ABI } from "~~/contracts/contracts";
+import { CHAINLINK_FEEDS, CHAINLINK_PRICE_FEED_ABI } from "~~/config/configs";
 
 export const useTokenPrice = (token: keyof typeof CHAINLINK_FEEDS) => {
   const { data, isError, isLoading } = useReadContract({
