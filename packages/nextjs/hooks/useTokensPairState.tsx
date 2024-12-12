@@ -3,6 +3,7 @@ import { formatUnits } from "viem";
 import { useAccount, useBalance } from "wagmi";
 import { TokenConfig } from "~~/config/configs";
 
+// Types for token data management
 export type TokenData = TokenConfig & {
   amount: string;
   balance: number;
@@ -14,9 +15,11 @@ export type TokenState = {
   [key: number]: TokenData;
 };
 
-export const useTokenState = (token0Config: TokenConfig, token1Config: TokenConfig) => {
+// Hook to manage state for a pair of tokens
+export const useTokensPairState = (token0Config: TokenConfig, token1Config: TokenConfig) => {
   const { address: userAddress } = useAccount();
 
+  // Initialize token pair state
   const [tokens, setTokens] = useState<TokenState>({
     0: {
       ...token0Config,
@@ -34,6 +37,7 @@ export const useTokenState = (token0Config: TokenConfig, token1Config: TokenConf
     },
   });
 
+  // Fetch token balances for the user
   const { data: token0Balance } = useBalance({
     address: userAddress,
     token: token0Config.address,
@@ -44,6 +48,7 @@ export const useTokenState = (token0Config: TokenConfig, token1Config: TokenConf
     token: token1Config.address,
   });
 
+  // Update token0 balance when data changes
   useEffect(() => {
     if (token0Balance) {
       setTokens(prev => ({
@@ -56,6 +61,7 @@ export const useTokenState = (token0Config: TokenConfig, token1Config: TokenConf
     }
   }, [token0Balance, token0Config.decimals]);
 
+  // Update token1 balance when data changes
   useEffect(() => {
     if (token1Balance) {
       setTokens(prev => ({

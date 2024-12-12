@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-interface TokenInputProps {
+// Props interface for token input field
+type TokenInputProps = {
   token: string;
   amount: string;
   onAmountChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -12,8 +13,9 @@ interface TokenInputProps {
   isLoading?: boolean;
   usdValue?: string;
   isError?: boolean;
-}
+};
 
+// Component for handling token amount inputs with validation
 const TokenInput: React.FC<TokenInputProps> = ({
   token,
   amount,
@@ -24,27 +26,26 @@ const TokenInput: React.FC<TokenInputProps> = ({
   usdValue = "$0.00",
   isError = false,
 }) => {
+  // Validates and handles input changes
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
 
-    // Only allow numbers and one decimal point
+    // Input validation for numbers and decimal points
     if (!/^\d*\.?\d*$/.test(value) && value !== "") {
       return;
     }
 
-    // Handle decimal numbers
+    // Length validation for decimal numbers
     if (value.includes(".")) {
       const [whole, decimal] = value.split(".");
       if (whole.length + decimal.length > 20) {
         return;
       }
-    }
-    // Handle whole numbers
-    else if (value.length > 20) {
+    } else if (value.length > 20) {
       return;
     }
 
-    // Handle scientific notation
+    // Prevent scientific notation
     if (value.toLowerCase().includes("e")) {
       return;
     }
@@ -54,6 +55,7 @@ const TokenInput: React.FC<TokenInputProps> = ({
 
   return (
     <div className={cn("rounded-lg border p-4 bg-neutral-800", isError ? "border-red-500" : "border-amber-800/20")}>
+      {/* Amount input and token symbol */}
       <div className="flex items-center justify-between mb-2">
         <Input
           type="text"
@@ -66,6 +68,7 @@ const TokenInput: React.FC<TokenInputProps> = ({
         />
         <div className="px-4 py-2 rounded-md bg-amber-900/40 text-amber-100 border border-amber-800/40">{token}</div>
       </div>
+      {/* Balance and USD value display */}
       <div className="flex justify-between text-sm text-amber-200/70">
         <span>{usdValue}</span>
         <div className="flex items-center space-x-2">

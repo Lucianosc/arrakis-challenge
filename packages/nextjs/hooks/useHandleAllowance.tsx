@@ -3,7 +3,8 @@ import { Address, erc20Abi, parseUnits } from "viem";
 import { BaseError, useTransactionConfirmations, useWriteContract } from "wagmi";
 import { TransactionStatus } from "~~/components/TransactionStep";
 
-interface UseHandleAllowanceParams {
+// Parameters for the allowance hook
+type UseHandleAllowanceParams = {
   token: {
     address: Address;
     amount: string;
@@ -12,14 +13,16 @@ interface UseHandleAllowanceParams {
   requiredConfirmations: number;
   spenderAddress: Address;
   onSuccess?: () => void;
-}
+};
 
+// Hook to handle token approval process
 export const useHandleAllowance = ({
   token,
   spenderAddress,
   onSuccess,
   requiredConfirmations,
 }: UseHandleAllowanceParams) => {
+  // Track transaction state
   const [txState, setTxState] = useState<TransactionStatus>({
     status: "idle",
     confirmations: 0,
@@ -27,7 +30,7 @@ export const useHandleAllowance = ({
 
   const { writeContractAsync: writeContract, error: contractWriteError } = useWriteContract();
 
-  // Confirmation tracking
+  // Watch for transaction confirmations
   const { data: confirmations } = useTransactionConfirmations({
     hash: txState.txHash,
     query: {
@@ -39,7 +42,7 @@ export const useHandleAllowance = ({
     },
   });
 
-  // Confirmations and success effect
+  // Handle confirmation updates
   useEffect(() => {
     if (!confirmations || txState.status !== "waiting") return;
 
@@ -57,7 +60,7 @@ export const useHandleAllowance = ({
     }
   }, [confirmations, requiredConfirmations, onSuccess, txState.status]);
 
-  // Error handling effect
+  // Handle transaction errors
   useEffect(() => {
     if (!contractWriteError) return;
 
@@ -68,15 +71,14 @@ export const useHandleAllowance = ({
     }));
   }, [contractWriteError]);
 
+  // Initiate token approval transaction
   const triggerApproval = async () => {
     try {
-      // Start approval
       setTxState(current => ({
         ...current,
         status: "pending",
       }));
 
-      // Send transaction
       const txHash = await writeContract({
         address: token.address,
         abi: erc20Abi,
@@ -84,7 +86,6 @@ export const useHandleAllowance = ({
         args: [spenderAddress, parseUnits(token.amount, token.decimals)],
       });
 
-      // Update state with transaction hash
       if (txHash) {
         setTxState(current => ({
           ...current,
@@ -98,6 +99,7 @@ export const useHandleAllowance = ({
     }
   };
 
+  // Reset hook state
   const reset = () => {
     setTxState({
       status: "idle",
@@ -105,6 +107,7 @@ export const useHandleAllowance = ({
     });
   };
 
+  // Return hook state and functions
   return {
     status: txState.status,
     confirmations: txState.confirmations,

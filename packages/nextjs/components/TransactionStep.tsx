@@ -2,6 +2,7 @@ import React from "react";
 import { Check, ExternalLink, Loader2, X } from "lucide-react";
 import { Hash } from "viem";
 
+// Define types for transaction status and steps
 export type TransactionStatus = {
   status: "idle" | "pending" | "waiting" | "success" | "error";
   confirmations: number;
@@ -18,6 +19,7 @@ export type TransactionStepProps = Step & {
   requiredConfirmations: number;
 };
 
+// Main component for displaying transaction step status
 export const TransactionStep = ({
   id,
   title,
@@ -46,6 +48,7 @@ export const TransactionStep = ({
   );
 };
 
+// Props for status message component
 type StatusMessageProps = {
   status: TransactionStatus["status"];
   txHash?: Hash;
@@ -54,6 +57,7 @@ type StatusMessageProps = {
   requiredConfirmations: number;
 };
 
+// Component to display appropriate message based on transaction status
 const StatusMessage = ({ status, txHash, error, confirmations, requiredConfirmations }: StatusMessageProps) => {
   switch (status) {
     case "pending":
@@ -84,11 +88,13 @@ const StatusMessage = ({ status, txHash, error, confirmations, requiredConfirmat
   }
 };
 
+// Props for step icon component
 type StepIconProps = {
   id: number;
   status: TransactionStatus["status"];
 };
 
+// Component to render appropriate icon based on transaction status
 const StepIcon = ({ id, status }: StepIconProps) => {
   switch (status) {
     case "success":
@@ -122,12 +128,14 @@ const StepIcon = ({ id, status }: StepIconProps) => {
   }
 };
 
+// Props for transaction link component
 type TransactionLinkProps = {
   txHash: Hash;
   children: React.ReactNode;
   className?: string;
 };
 
+// Component to render transaction link to Arbiscan
 const TransactionLink = ({ txHash, children, className }: TransactionLinkProps) => (
   <a
     href={`https://arbiscan.io/tx/${txHash}`}

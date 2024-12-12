@@ -9,6 +9,7 @@ import { ARRAKIS_CONTRACTS } from "~~/contracts/contracts";
 import { useAddLiquidity } from "~~/hooks/useAddLiquidity";
 import { useHandleAllowance } from "~~/hooks/useHandleAllowance";
 
+// Token type definition
 export type Token = {
   address: Address;
   symbol: string;
@@ -16,6 +17,7 @@ export type Token = {
   decimals: number;
 };
 
+// Props interface for modal
 type TransactionModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -27,7 +29,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
   const chainId = useChainId();
   const requiredConfirmations = supportedChains.find(chain => chain.id === chainId)?.requiredConfirmations || 0;
 
-  // Handle token approvals
+  // Setup token approvals
   const token0Allowance = useHandleAllowance({
     token: {
       address: tokens[0].address,
@@ -36,10 +38,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
     },
     spenderAddress: ARRAKIS_CONTRACTS.router.address,
     requiredConfirmations,
-    onSuccess: () => {
-      // When first token is approved, trigger second token approval
-      token1Allowance.triggerApproval();
-    },
+    onSuccess: () => token1Allowance.triggerApproval(),
   });
 
   const token1Allowance = useHandleAllowance({
@@ -50,12 +49,10 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
     },
     spenderAddress: ARRAKIS_CONTRACTS.router.address,
     requiredConfirmations,
-    onSuccess: () => {
-      // When second token is approved, proceed with adding liquidity
-      addLiquidity.triggerAddLiquidity();
-    },
+    onSuccess: () => addLiquidity.triggerAddLiquidity(),
   });
 
+  // Setup liquidity addition
   const addLiquidity = useAddLiquidity({
     tokens: [
       { amount: tokens[0].amount, decimals: tokens[0].decimals },
@@ -65,7 +62,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
     onSuccess,
   });
 
-  // Start process when modal opens
+  // Reset and start process when modal opens
   useEffect(() => {
     if (isOpen) {
       token0Allowance.reset();
@@ -75,7 +72,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
     }
   }, [isOpen]);
 
-  // Combine all steps for display
+  // Define transaction steps
   const steps: Step[] = [
     {
       id: 0,

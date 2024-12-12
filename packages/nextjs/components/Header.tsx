@@ -9,11 +9,11 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Menu } from "lucide-react";
 
 // Types
-interface HeaderMenuLink {
+type HeaderMenuLink = {
   label: string;
   href: string;
   icon?: React.ReactNode;
-}
+};
 
 // Navigation Links Configuration
 const menuLinks: HeaderMenuLink[] = [];

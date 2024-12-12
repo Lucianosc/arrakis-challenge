@@ -8,20 +8,26 @@ import { arbitrum } from "viem/chains";
 import { useAccount, useSwitchChain } from "wagmi";
 import { VAULT_CONFIG } from "~~/config/configs";
 import { useTokenPrice } from "~~/hooks/useTokenPrice";
-import { TokenState, useTokenState } from "~~/hooks/useTokenState";
+import { TokenState, useTokensPairState } from "~~/hooks/useTokensPairState";
 import { useVaultRatio } from "~~/hooks/useVaultRatio";
 import { calculateTokenAmounts, calculateTokenPrice } from "~~/utils/tokenCalculations";
 
+// Main component for adding liquidity to Arrakis vault
 const AddLiquidity: React.FC = () => {
+  // Wallet and chain state
   const { isConnected, chainId: currentChainId } = useAccount();
   const { switchChain } = useSwitchChain();
   const { openConnectModal } = useConnectModal();
+
+  // Token price hooks for USD calculations
   const { price: token0Price, isError: isToken0PriceError } = useTokenPrice(VAULT_CONFIG.token0.pricePairTicker);
   const { price: token1Price, isError: isToken1PriceError } = useTokenPrice(VAULT_CONFIG.token1.pricePairTicker);
+
   const [isTransactionProgressOpen, setIsTransactionProgressOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
-  const { tokens, setTokens } = useTokenState(VAULT_CONFIG.token0, VAULT_CONFIG.token1);
+  // Initialize token states and vault ratio
+  const { tokens, setTokens } = useTokensPairState(VAULT_CONFIG.token0, VAULT_CONFIG.token1);
   const vaultTokenRatio = useVaultRatio(
     VAULT_CONFIG.vault.helper.address,
     VAULT_CONFIG.vault.helper.abi,
@@ -30,6 +36,7 @@ const AddLiquidity: React.FC = () => {
     VAULT_CONFIG.token1.decimals,
   );
 
+  // Updates token states with validation
   const validateAndUpdateTokens = (
     prevTokens: TokenState,
     changedIndex: number,
@@ -59,6 +66,7 @@ const AddLiquidity: React.FC = () => {
     };
   };
 
+  // Handles amount changes in token inputs
   const handleAmountChange = (tokenIndex: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const newAmount = e.target.value;
     const otherIndex = tokenIndex === 0 ? 1 : 0;
@@ -70,11 +78,13 @@ const AddLiquidity: React.FC = () => {
     setTokens(updatedTokens);
   };
 
+  // Sets token amount to max balance
   const handleMaxClick = (tokenIndex: number) => () => {
     const balance = tokens[tokenIndex].balance;
     handleAmountChange(tokenIndex)({ target: { value: balance.toString() } } as React.ChangeEvent<HTMLInputElement>);
   };
 
+  // Determines button state based on wallet connection and chain
   const buttonState = isConnected
     ? currentChainId !== arbitrum.id
       ? {
