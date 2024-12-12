@@ -92,10 +92,10 @@ While the project supports two chains, it currently only functions on Arbitrum O
 
 ## Areas for Improvement
 
-1. **Multi-vault Support**
+1. **Transaction Feedback System**
 
-   - Implement support for multiple vaults and token pairs
-   - Create a more flexible vault configuration system
+   - Show AddLiquidity transaction output to the user (amounts of shares received)
+   - Bypass token allowance transaction if there is an existing one that is equal or bigger
 
 2. **Transaction Management**
 
@@ -110,7 +110,6 @@ While the project supports two chains, it currently only functions on Arbitrum O
 
    - Create a comprehensive error mapping system
    - Implement more user-friendly error messages
-   - Add recovery flows for failed transactions
 
 5. **Code Comments**
 
