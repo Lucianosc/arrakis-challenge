@@ -3,6 +3,7 @@ import { Address, parseUnits, zeroAddress } from "viem";
 import { BaseError, useAccount, useReadContract, useTransactionConfirmations, useWriteContract } from "wagmi";
 import { TransactionStatus } from "~~/components/TransactionStep";
 import { ARRAKIS_CONTRACTS } from "~~/contracts/contracts";
+import { formatTokenAmount } from "~~/utils/formatTokenAmount";
 
 type Token = {
   amount: string;
@@ -36,10 +37,10 @@ export const useAddLiquidity = ({ tokens, onSuccess, requiredConfirmations }: Ad
     status: "idle",
     confirmations: 0,
   });
-
+  console.log(tokens[1].amount);
   // Convert token amounts to the correct decimal precision
-  const amount0Max = tokens[0].amount ? parseUnits(tokens[0].amount, tokens[0].decimals) : 0n;
-  const amount1Max = tokens[1].amount ? parseUnits(tokens[1].amount, tokens[1].decimals) : 0n;
+  const amount0Max = tokens[0].amount ? parseUnits(formatTokenAmount(tokens[0].amount), tokens[0].decimals) : 0n;
+  const amount1Max = tokens[1].amount ? parseUnits(formatTokenAmount(tokens[1].amount), tokens[1].decimals) : 0n;
 
   // Calculate minimum amounts (5% slippage tolerance)
   const amount0Min = (amount0Max * 95n) / 100n;
