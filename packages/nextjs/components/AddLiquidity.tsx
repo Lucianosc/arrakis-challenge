@@ -166,65 +166,80 @@ const AddLiquidity: React.FC = () => {
     return [updatedTokens, hasError];
   };
 
-  // Handle amount change in input fields
-  const handleAmountChange = (tokenIndex: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newAmount = e.target.value;
-    const otherIndex = tokenIndex === 0 ? 1 : 0;
-
-    setTokens(prev => {
-      if (!vaultTokenRatio || !newAmount) {
-        const [updatedTokens, hasError] = validateAndUpdateTokens(
-          prev,
-          tokenIndex,
-          newAmount,
-          otherIndex,
-          prev[otherIndex].amount,
-        );
-        setErrorMsg(hasError ? "Insufficient balance" : "");
-        return updatedTokens;
-      }
-
-      const numAmount = Number(newAmount);
-      const otherAmount =
-        tokenIndex === 0 ? (numAmount / vaultTokenRatio).toString() : (numAmount * vaultTokenRatio).toString();
-
-      const [updatedTokens, hasError] = validateAndUpdateTokens(prev, tokenIndex, newAmount, otherIndex, otherAmount);
-      setErrorMsg(hasError ? "Insufficient balance" : "");
-      return updatedTokens;
-    });
+  // Helper function to safely convert string to number
+  const safeParseNumber = (value: string): number | null => {
+    // Remove any non-numeric characters except decimal point
+    const sanitizedValue = value.replace(/[^\d.]/g, "");
+    const parsedValue = Number(sanitizedValue);
+    return isNaN(parsedValue) ? null : parsedValue;
   };
 
-  // Handle max button click
+  // Helper function to handle token amount updates with ratio calculations
+  const calculateTokenAmounts = (
+    amount: string,
+    tokenIndex: number,
+    vaultTokenRatio: number | null,
+  ): { newAmount: string; otherAmount: string } => {
+    if (!vaultTokenRatio || !amount) {
+      return {
+        newAmount: amount,
+        otherAmount: "",
+      };
+    }
+
+    const numAmount = safeParseNumber(amount);
+
+    // If conversion failed, return empty other amount
+    if (numAmount === null) {
+      return {
+        newAmount: amount,
+        otherAmount: "",
+      };
+    }
+
+    const otherAmount =
+      tokenIndex === 0 ? (numAmount / vaultTokenRatio).toString() : (numAmount * vaultTokenRatio).toString();
+
+    return {
+      newAmount: amount,
+      otherAmount,
+    };
+  };
+
+  // Common update logic for both handlers
+  const updateTokenAmounts = (
+    currentTokens: TokenState,
+    tokenIndex: number,
+    newAmount: string,
+    vaultTokenRatio: number | null,
+    setErrorMsg: (msg: string) => void,
+  ): TokenState => {
+    const otherIndex = tokenIndex === 0 ? 1 : 0;
+    const { newAmount: validatedAmount, otherAmount } = calculateTokenAmounts(newAmount, tokenIndex, vaultTokenRatio);
+
+    const [updatedTokens, hasError] = validateAndUpdateTokens(
+      currentTokens,
+      tokenIndex,
+      validatedAmount,
+      otherIndex,
+      otherAmount || currentTokens[otherIndex].amount,
+    );
+
+    setErrorMsg(hasError ? "Insufficient balance" : "");
+    return updatedTokens;
+  };
+
+  // Refactored handlers using the common update logic
+  const handleAmountChange = (tokenIndex: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newAmount = e.target.value;
+
+    setTokens(prev => updateTokenAmounts(prev, tokenIndex, newAmount, vaultTokenRatio, setErrorMsg));
+  };
+
   const handleMaxClick = (tokenIndex: number) => () => {
     const balance = tokens[tokenIndex].balance;
-    const otherIndex = tokenIndex === 0 ? 1 : 0;
 
-    setTokens(prev => {
-      if (!vaultTokenRatio) {
-        const [updatedTokens, hasError] = validateAndUpdateTokens(
-          prev,
-          tokenIndex,
-          balance.toString(),
-          otherIndex,
-          prev[otherIndex].amount,
-        );
-        setErrorMsg(hasError ? "Insufficient balance" : "");
-        return updatedTokens;
-      }
-
-      const otherAmount =
-        tokenIndex === 0 ? (balance / vaultTokenRatio).toString() : (balance * vaultTokenRatio).toString();
-
-      const [updatedTokens, hasError] = validateAndUpdateTokens(
-        prev,
-        tokenIndex,
-        balance.toString(),
-        otherIndex,
-        otherAmount,
-      );
-      setErrorMsg(hasError ? "Insufficient balance" : "");
-      return updatedTokens;
-    });
+    setTokens(prev => updateTokenAmounts(prev, tokenIndex, balance.toString(), vaultTokenRatio, setErrorMsg));
   };
 
   // Button states
@@ -256,7 +271,7 @@ const AddLiquidity: React.FC = () => {
 
   const currentBtnState = Object.values(btnStates).find(state => state.condition);
 
-  const approvalTokens: [Token, Token] = [
+  const tokensToApprove: [Token, Token] = [
     {
       address: tokens[0].address,
       symbol: tokens[0].symbol,
@@ -324,7 +339,7 @@ const AddLiquidity: React.FC = () => {
       <TransactionModal
         isOpen={isTransactionProgressOpen}
         onClose={() => setIsTransactionProgressOpen(false)}
-        tokens={approvalTokens}
+        tokens={tokensToApprove}
         onSuccess={() => console.log("Liquidity Added")}
       />
     </div>
