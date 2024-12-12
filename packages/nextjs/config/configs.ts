@@ -1,7 +1,6 @@
 import { Abi, Address } from "viem";
 import { ARRAKIS_CONTRACTS } from "~~/contracts/contracts";
 
-// ======= Type Definitions =======
 export const SUPPORTED_SYMBOLS = ["rETH", "WETH"] as const;
 export type TokenSymbol = (typeof SUPPORTED_SYMBOLS)[number];
 export type PricePairTicker = "ETHUSD" | "rETHETH";
@@ -44,6 +43,7 @@ export const TOKENS: Record<TokenSymbol, TokenConfig> = {
   },
 } as const;
 
+// ======= Arrakis Vault Configurations =======
 export const VAULT_CONFIG: VaultConfig = {
   token0: TOKENS.WETH,
   token1: TOKENS.rETH,
