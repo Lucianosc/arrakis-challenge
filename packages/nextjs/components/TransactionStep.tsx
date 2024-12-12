@@ -110,13 +110,13 @@ const StepIcon = ({ id, status }: StepIconProps) => {
     case "idle":
       return (
         <div className="w-8 h-8 rounded-full border-2 border-amber-500 flex items-center justify-center">
-          <span className="text-md text-amber-500">{id}</span>
+          <span className="text-md text-amber-500">{id + 1}</span>
         </div>
       );
     default:
       return (
         <div className="w-8 h-8 rounded-full border-2 border-neutral-600 flex items-center justify-center">
-          <span className="text-md text-neutral-600">{id}</span>
+          <span className="text-md text-neutral-600">{id + 1}</span>
         </div>
       );
   }

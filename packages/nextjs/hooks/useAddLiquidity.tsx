@@ -37,7 +37,7 @@ export const useAddLiquidity = ({ tokens, onSuccess, requiredConfirmations }: Ad
     status: "idle",
     confirmations: 0,
   });
-  console.log(tokens[1].amount);
+
   // Convert token amounts to the correct decimal precision
   const amount0Max = tokens[0].amount ? parseUnits(formatTokenAmount(tokens[0].amount), tokens[0].decimals) : 0n;
   const amount1Max = tokens[1].amount ? parseUnits(formatTokenAmount(tokens[1].amount), tokens[1].decimals) : 0n;

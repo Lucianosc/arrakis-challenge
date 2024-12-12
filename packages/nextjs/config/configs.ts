@@ -1,4 +1,5 @@
-import { Address } from "viem";
+import { Abi, Address } from "viem";
+import { ARRAKIS_CONTRACTS } from "~~/contracts/contracts";
 
 // ======= Type Definitions =======
 export const SUPPORTED_SYMBOLS = ["rETH", "WETH"] as const;
@@ -12,6 +13,17 @@ export type TokenConfig = {
   decimals: number;
   pricePairTicker: PricePairTicker;
   iconSymbol: IconSymbols;
+};
+export type VaultConfig = {
+  token0: TokenConfig;
+  token1: TokenConfig;
+  vault: {
+    address: Address;
+    helper: {
+      address: Address;
+      abi: Abi;
+    };
+  };
 };
 
 // ======= Token Configurations =======
@@ -31,6 +43,18 @@ export const TOKENS: Record<TokenSymbol, TokenConfig> = {
     iconSymbol: "rpl",
   },
 } as const;
+
+export const VAULT_CONFIG: VaultConfig = {
+  token0: TOKENS.WETH,
+  token1: TOKENS.rETH,
+  vault: {
+    address: ARRAKIS_CONTRACTS.vault.address,
+    helper: {
+      address: ARRAKIS_CONTRACTS.helper.address,
+      abi: ARRAKIS_CONTRACTS.helper.abi,
+    },
+  },
+};
 
 // ======= Chainlink Configurations =======
 export const CHAINLINK_FEEDS = {
