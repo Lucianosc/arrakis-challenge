@@ -1,21 +1,28 @@
+import { type PropsWithChildren } from "react";
 import "@rainbow-me/rainbowkit/styles.css";
-import { ScaffoldEthAppWithProviders } from "~~/components/ScaffoldEthAppWithProviders";
-import { ThemeProvider } from "~~/components/ThemeProvider";
+import type { Metadata } from "next";
+import { Header } from "~~/components/Header";
+import { Providers } from "~~/providers/Providers";
 import "~~/styles/globals.css";
-import { getMetadata } from "~~/utils/scaffold-eth/getMetadata";
 
-export const metadata = getMetadata({ title: "Scaffold-ETH 2 App", description: "Built with 🏗 Scaffold-ETH 2" });
+// Metadata Next.js 14
+export const metadata: Metadata = {
+  title: "Arrakis Vault",
+  description: "Arrakis challenge",
+};
 
-const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
+// Using proper TypeScript types for layout components
+export default function RootLayout({ children }: PropsWithChildren) {
   return (
-    <html suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body>
-        <ThemeProvider enableSystem>
-          <ScaffoldEthAppWithProviders>{children}</ScaffoldEthAppWithProviders>
-        </ThemeProvider>
+        <Providers>
+          <div className="flex flex-col min-h-screen bg-neutral-800 relative">
+            <Header />
+            <main className="relative flex flex-col flex-1">{children}</main>
+          </div>
+        </Providers>
       </body>
     </html>
   );
-};
-
-export default ScaffoldEthApp;
+}
