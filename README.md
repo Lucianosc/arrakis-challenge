@@ -42,6 +42,12 @@ yarn install
 yarn start
 ```
 
+5. Testing:
+
+```bash
+yarn next:test
+```
+
 ## Local Development
 
 The project uses a Tenderly fork of Arbitrum One for local development. Key folders:
