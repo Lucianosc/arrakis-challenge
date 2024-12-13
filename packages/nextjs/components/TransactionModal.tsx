@@ -70,6 +70,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
       addLiquidity.reset();
       token0Allowance.triggerApproval();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   // Define transaction steps

@@ -6,7 +6,7 @@ import { Settings2 } from "lucide-react";
 import { TokenState } from "~~/hooks/useTokensPairState";
 
 // Props interface for the card component
-type AddLiquidityCardProps = {
+export type AddLiquidityCardProps = {
   tokens: TokenState;
   onAmountChange: (tokenIndex: number) => (e: React.ChangeEvent<HTMLInputElement>) => void;
   onMaxClick: (tokenIndex: number) => () => void;
@@ -50,7 +50,7 @@ export const AddLiquidityCard: React.FC<AddLiquidityCardProps> = ({
       {/* Token input fields */}
       {Object.entries(tokens).map(([index, data]) => (
         <TokenInput
-          key={index}
+          key={`${data.symbol}_input${index}`}
           token={data.symbol}
           amount={data.amount}
           onAmountChange={onAmountChange(Number(index))}

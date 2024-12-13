@@ -4,9 +4,10 @@ import { parseUnits } from "viem";
  * Converts scientific notation to decimal string while preserving precision
  */
 export const formatTokenAmount = (amount: string): string => {
-  if (!amount) return "0";
+  // Handle empty or whitespace-only strings
+  if (!amount || !amount.trim()) return "";
 
-  // Remove any commas or whitespace
+  // Remove any commas and trim whitespace
   const cleanAmount = amount.replace(/[,\s]/g, "");
 
   // Handle scientific notation
@@ -18,24 +19,27 @@ export const formatTokenAmount = (amount: string): string => {
       throw new Error("Invalid scientific notation");
     }
 
-    // Remove decimal point from mantissa and track its position
-    const [integerPart, decimalPart = ""] = mantissa.split(".");
-    const mantissaWithoutDecimal = integerPart + decimalPart;
+    // Parse mantissa parts
+    const [, decimalPart = ""] = mantissa.split(".");
+    const mantissaValue = parseFloat(mantissa);
 
-    // Calculate the final decimal position
+    // Handle special case where mantissa is 0
+    if (mantissaValue === 0) return "0";
+
+    // Calculate significant digits and decimal position
     const originalDecimalLength = decimalPart.length;
-    const newPosition = originalDecimalLength ? exponent + originalDecimalLength : exponent;
+    const finalExponent = exponent - originalDecimalLength;
 
-    if (newPosition >= 0) {
-      // Need to add zeros to the end
-      return mantissaWithoutDecimal + "0".repeat(newPosition - mantissaWithoutDecimal.length + integerPart.length);
+    if (finalExponent >= 0) {
+      // Move decimal point right
+      return mantissaValue * Math.pow(10, exponent) + "";
     } else {
-      // Need to add zeros at the start
-      return "0." + "0".repeat(Math.abs(newPosition) - 1) + mantissaWithoutDecimal;
+      // Move decimal point left
+      const result = mantissaValue * Math.pow(10, exponent);
+      return result.toFixed(Math.abs(finalExponent));
     }
   }
 
-  // If no scientific notation, return as is
   return cleanAmount;
 };
 
@@ -45,6 +49,7 @@ export const formatTokenAmount = (amount: string): string => {
 export const safeParseUnits = (amount: string, decimals: number): bigint => {
   try {
     const formattedAmount = formatTokenAmount(amount);
+    if (!formattedAmount) return 0n;
     return parseUnits(formattedAmount, decimals);
   } catch (error) {
     console.error("Error parsing units:", error);
